@@ -1,0 +1,36 @@
+{
+    "IoCs":{
+        "nom1":[
+            1,
+            2
+        ],
+        "nom2":[
+            1,
+            3
+        ]
+    },
+    "ASEP":{
+        "rutas":[
+            "%programdata%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup",
+            "%appdata%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+        ],
+        "tareas_programadas":[
+            "tarea_1",
+            "tarea_2"
+        ],
+        "registros":[
+            "reg_1",
+            "reg_2"
+        ]
+    },
+    "ARCHIVOS":[
+        "C:\\Windows\\System32\\drivers\\etc\\hosts",
+        "C:\\Users\\Angel\\Desktop\\secreto.txt"
+    ],
+    "DIRECTORIOS":[
+        "%appdata%",
+        "%temp%",
+        "%programdata%"
+    ],
+    "FLAG":1
+}
