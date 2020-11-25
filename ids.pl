@@ -22,33 +22,35 @@ $log_file =~ s/( |:)/_/g;
 my $file = "config.json";
 my $msg = "";
 
-# Se verifica que el archivo de configuracion se encuentre disponible, de lo 
-# contrario termina la ejecucion el archivo
-unless(-e $file){
-    $msg = "No existe el archivo de configuracion '$file'";
-    message_box($msg, "Error"); # muestra una ventana con un mensaje de error
-    die $msg;
-} else {
-    # Leemos el archivo de configuracion
-    my $json_text = do { open my $fh, '<', $file; local $/; <$fh> }; # obtiene el contenido del archivo de configuracion
-    my $text = decode_json($json_text); # decodificamos el contenido
-    my @files_list = @{$text->{ARCHIVOS}}; # obtenemos la lista de los archivos
-    my @dir_list = @{$text->{DIRECTORIOS}}; # obtenemos la lista de directorios a monitorear
-    my %aseps_hash = %{$text->{ASEP}}; # obtenemos un hash con los ASEPs
-    my %iocs_hash = %{$text->{IoCs}}; # obtenemos un hash con los iocs
-    my $flag = $text->{FLAG}; # obtenemos el valor de la bandera para consultar virus total
+sub main{
+    # Se verifica que el archivo de configuracion se encuentre disponible, de lo 
+    # contrario termina la ejecucion el archivo
+    unless(-e $file){
+        $msg = "No existe el archivo de configuracion '$file'";
+        message_box($msg, "Error"); # muestra una ventana con un mensaje de error
+        die $msg;
+    } else {
+        # Leemos el archivo de configuracion
+        my $json_text = do { open my $fh, '<', $file; local $/; <$fh> }; # obtiene el contenido del archivo de configuracion
+        my $text = decode_json($json_text); # decodificamos el contenido
+        my @files_list = @{$text->{ARCHIVOS}}; # obtenemos la lista de los archivos
+        my @dir_list = @{$text->{DIRECTORIOS}}; # obtenemos la lista de directorios a monitorear
+        my %aseps_hash = %{$text->{ASEP}}; # obtenemos un hash con los ASEPs
+        my %iocs_hash = %{$text->{IoCs}}; # obtenemos un hash con los iocs
+        my $flag = $text->{FLAG}; # obtenemos el valor de la bandera para consultar virus total
 
-    # lista de hashes de los archivos especificados en el archivo de configuracion
-    my %hash_files = get_hashes(@files_list);
-    my %dirs = get_files_in_dir(get_path_dirs(@dir_list));
-    my %rutas = get_files_in_dir(get_path_dirs(@{$aseps_hash{"rutas"}}));
+        # lista de hashes de los archivos especificados en el archivo de configuracion
+        my %hash_files = get_hashes(@files_list);
+        my %dirs = get_files_in_dir(get_path_dirs(@dir_list));
+        my %rutas = get_files_in_dir(get_path_dirs(@{$aseps_hash{"rutas"}}));
 
-    # ciclo infinito es el core del programa, aqui van todas las funciones que se van a estar
-    # ejecutando
-    while(1){
-        check_files(\%hash_files);
-        check_dirs("DIRECTORIOS", $flag, \%dirs);
-        check_dirs("ASEPS[rutas]", $flag, \%rutas);
+        # ciclo infinito es el core del programa, aqui van todas las funciones que se van a estar
+        # ejecutando
+        while(1){
+            check_files(\%hash_files);
+            check_dirs("DIRECTORIOS", $flag, \%dirs);
+            check_dirs("ASEPS[rutas]", $flag, \%rutas);
+        }
     }
 }
 
@@ -206,8 +208,10 @@ sub check_dirs{
         my @actual_files = get_files($path); # obtenemos los archivos que se contienen en el directorio en tiempo real
         my $hash;
 
+        #print "$#actual_files >= $#original_files or $#actual_files <= $#original_files\n";
         # validamos si se creo o elimino un elemento
-        if ($#actual_files >= $#original_files or $#actual_files <= $#original_files){
+        if ($#actual_files > $#original_files or $#actual_files < $#original_files){
+            #print "entra";
             # bloque cuando se crea un nuevo archivo
             if ($#actual_files >= $#original_files){
                 my @diff = array_diff(@original_files, @actual_files); # obtenemos los archivos creados
@@ -264,3 +268,7 @@ sub get_time{
     my $nice_timestamp = sprintf ("%04d-%02d-%02d %02d:%02d:%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec);
     return $nice_timestamp;
 }
+
+
+# Ejecucion del main
+main();
