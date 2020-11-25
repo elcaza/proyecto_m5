@@ -34,9 +34,11 @@ function exists_scheduledTask {
 	}
 
 	if($taskExists) {
-	   echo "Existe"; 
+	   # echo "Existe"; 
+	   return 1;
 	} else {
-	   echo "No existe";
+	   # echo "No existe";
+	   return 0;
 	}
 
 	# Write-Output $name $method
@@ -52,16 +54,20 @@ $powershell_scheduledTask = "$powershell_scheduledTask $pw_args";
 # Inicio
 
 print("Iniciando programa...\n");
-my $var = execute_powershell_cmd("ls");
-print $var;
-#main();
+#my $var = execute_powershell_cmd("ls");
+#print $var;
+main();
 print("End\n");
 
 ################################################################
 # Función principal
 sub main {
 	my $output = &exists_scheduledTask("$powershell_scheduledTask");
-	print $output;
+	if ($output == 1){
+		print "Existe: $output";
+	} else {
+		print "No existe: $output";
+	}
 }
 
 
@@ -78,4 +84,5 @@ sub execute_powershell_cmd {
 sub exists_scheduledTask {
 	my $ps= Win32::PowerShell::IPC->new();
 	my $output= $ps->run_command("$_[0]");
+	return $output;
 }
