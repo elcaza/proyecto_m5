@@ -8,6 +8,7 @@ my $processorCount;     #Para obtener los procesadores del sistema
 my $statsQuery;         #Para crear las queries al sig objeto
 my $objWMIService = Win32::OLE->GetObject("winmgmts://./root/cimv2") or die "WMI fallido\n";  #Se crea objeto del sistema
 my $P = Win32::Process::List->new() or die "Lista fallida\n";    #Se crea una lista de procesos
+my $flag = 0;
 # Funcion ´rincipal para el monitoreo de procesos. Se mete en un ciclo while para que se realice más d euna vez
 sub main(){
     my %list = $P->GetProcesses();
@@ -17,8 +18,10 @@ sub main(){
         #$statsQuery="select * from Win32_PerfRawData_PerfProc_Process where IDProcess=".$$; #Usando PID
         $statsQuery="select * from Win32_PerfRawData_PerfProc_Process where Name='".$process."'"; #Nombres de proceso sin .exe #print $statsQuery;
         ProcNums();
-        GetProcessInfo(10,10);
+        GetProcessInfo(10,10,$key);
+        print $flag;
     }
+    #return $flag;
 }
 # Obtiene datos para el cálculo de datos
 sub ProcNums(){
@@ -32,13 +35,14 @@ sub ProcNums(){
 sub GetProcessInfo(){
     my $limit = shift;        #Cantidad de calculos que realiza por proceso
     my $tolerancia = shift;   #Porcentaje de CPU que levanta alerta
-
-
+    my $PID = shift;          #PID del proceso
+    my $outfile = "Proceso_".$PID.".txt";
     my $processingTime=0;
     my $timeStamp=0;
     my $cpu=0;
     my $cpumin=0;
     my $ram=0;
+    my $rammin=0;
     my $procName;
 
     while($limit != 0)
@@ -51,18 +55,27 @@ sub GetProcessInfo(){
             $cpumin = CPUutil($processingTime,$procData->{PercentProcessorTime},$timeStamp,$procData->{TimeStamp_Sys100NS});
             $processingTime = $procData->{PercentProcessorTime};
             $timeStamp = $procData->{TimeStamp_Sys100NS};
-            $ram = $procData->{WorkingSetPrivate};
+            $rammin = $procData->{WorkingSetPrivate};
         }
         #Se guarda el valor máximo en CPU (para detectar el minero) de las rondas
         if ($cpumin > $cpu){
             $cpu = $cpumin;
+        }
+        #Se guarda el valor máximo en RAM (para detectar el minero) de las rondas
+        if ($rammin > $ram){
+            $ram = $rammin;
         }
         #Se pasa a la sig ronda
         $limit -= 1;
     }
     # Se revisa si ha superado la tolerancia establecida
     if ($cpu > $tolerancia){
-        print "Nombre de proceso :".$procName.", MaxCPU:".sprintf("%.4f",$cpu)."%, RAM:".$ram."\n"; #Mensaje a escribir
+        $flag = 1;
+        $ram = $ram/1000000;
+        print "Nombre de proceso :".$procName.", PID: $PID, MaxCPU:".sprintf("%.4f",$cpu)."%, RAM:".$ram."MB \n"; #Mensaje a escribir
+        `..\\strings2\\x64\\Release\\strings.exe -pid $PID > $outfile` #Como puede ser una operación tardada, se hace solo con los que superar la funcionalidad
+    }else{
+        $flag = 0;
     }
 }
 #Obtiene el dato correcto del uso de CPU
