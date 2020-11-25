@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Data::Dumper;
+use JSON;
 
 sub main(){
     my $formato ="Proceso_*.txt";
@@ -12,6 +13,7 @@ sub main(){
     foreach $file (@ls) {
         if (-f $file){
             # Obtenemos los sitios visitados
+            my $ip = "";
             print "Analizando $file...\n";
             # Abrimos el archivo para lectura
             open(FILE, $file) or die "No se pudo abrir $file: $!";
@@ -34,18 +36,18 @@ sub main(){
                             $url = "http:".$url;
                             #print "$url\n";
                             # Como necesitamos resolver el nombre de dominio, se hace nslookup a las urls:
-                            Nslookup($url);
+                            $ip = Nslookup($url);
                         }
                         
                         my $rep = 1;
                         # Si existe e el hash, incrementamos la repetición
-                        if((exists $urls{$url})){
-                            $rep = $urls{$url};
+                        if((exists $urls{$ip})){
+                            $rep = $urls{$ip};
                             $rep += 1;
-                            $urls{$url} = $rep;
+                            $urls{$ip} = $rep;
                         }else{
                             # Si no existe, se añade al hash $url{$repeticiones}
-                            $urls{$url} = $rep;
+                            $urls{$ip} = $rep;
                         }
                     }elsif (index($line, "https://") != -1){
                         my $tmp = (split /https:/, $line, 2)[1];
@@ -61,40 +63,48 @@ sub main(){
                             $url = "https:".$url;
                             #print "$url\n";
                             # Como necesitamos resolver el nombre de dominio, se hace nslookup a las urls:
-                            Nslookup($url);
+                            $ip = Nslookup($url);
                         }
                         
                         my $rep = 1;
                         # Si existe e el hash, incrementamos la repetición
-                        if((exists $urls{$url})){
-                            $rep = $urls{$url};
+                        if((exists $urls{$ip})){
+                            $rep = $urls{$ip};
                             $rep += 1;
-                            $urls{$url} = $rep;
+                            $urls{$ip} = $rep;
                         }else{
                             # Si no existe, se añade al hash $url{$repeticiones}
-                            $urls{$url} = $rep;
+                            $urls{$ip} = $rep;
                         }
                     }
                 };
             }
         }
+        my $json = encode_json \%urls;
         open OUTFILE, "> IPs_$file" or die $1;
-        print OUTFILE Dumper(\%urls);
+        print OUTFILE $json;
         close OUTFILE;
     }
 }
 
 sub Nslookup(){
-    my $full = shift;
+    my ($full) = @_;
     # Obtenemos solo el dominio
     my @tmp = split('//', $full);
+    if ($tmp[1] eq "")
+    {
+        last;
+    }
     my $dom = $tmp[1];
     @tmp = split('/', $dom);
     my $url = $tmp[0];
-    print $url;
-    my @nslookup = split '\n', `nslookup $url`; #Obtiene las líneas de salida del comando netstat
+    #print $url,$tmp[0],$dom,$full;
+    my @nslookup = split '\n', `nslookup $url > nul`; #Obtiene las líneas de salida del comando netstat
     foreach (@nslookup) {
-        print $_;
+        if($_ =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/)
+        {
+            return $1;
+        }
     }
 }
 
