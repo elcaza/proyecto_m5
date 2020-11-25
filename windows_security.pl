@@ -9,8 +9,8 @@ use Win32::PowerShell::IPC; # cpan Win32::PowerShell::IPC
 ################################################################
 # Inicia Variables
 
-my $check_firewall = 1;
-my $check_defender = 1;
+my $check_firewall = 1; # Debe provenir del archivo config
+my $check_defender = 1; # Debe provenir del archivo config
 
 # Finaliza Variables a configurar
 ################################################################
@@ -39,7 +39,7 @@ function check_reg_value {
 		#echo "Firewall apagado";
 		return 0;
 	} 
-	elseif ($method -eq "1"){
+	elseif ($value -eq "1"){
 		#echo "Firewall prendido";
 		return 1;
 	} else {
@@ -55,10 +55,14 @@ $reg_key4 = check_reg_value "LocalMachine" $reg_fw_key4 "EnableFirewall"
 $reg_key5 = check_reg_value "LocalMachine" $reg_fw_key5 "EnableFirewall"
 $reg_key6 = check_reg_value "LocalMachine" $reg_fw_key6 "EnableFirewall"
 
+# 0 - 6
+# 0 => totalmente apagado [Not ok]
+# 6 => totalmente prendido [Ok]
 $ioc_fw = $reg_key1 + $reg_key2 + $reg_key3 + $reg_key4 +$reg_key5 + $reg_key6;
-echo $ioc_fw; ';
+echo $ioc_fw;
+';
 
-my $check_windows_firewall = '
+my $check_windows_defender = '
 # original
 # [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey("LocalMachine",$env:COMPUTERNAME).OpenSubKey("System\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile").GetValue("EnableFirewall")
 
@@ -114,9 +118,12 @@ $reg_key2 = check_reg_value "LocalMachine" $reg_wd_key2 "TamperProtectionSource"
 $reg_key3 = check_reg_value "LocalMachine" $reg_wd_key3 "SpyNetReporting" $normal_SpyNetReporting;
 $reg_key4 = check_reg_value "LocalMachine" $reg_wd_key4 "SubmitSamplesConsent" $noraml_SubmitSamplesConsent;
 
+# 0 - 4
+# 0 => totalmente apagado [Not ok]
+# 4 => totalmente prendido [Ok]
 $ioc_fw = $reg_key1 + $reg_key2 + $reg_key3 + $reg_key4
 echo $ioc_fw;
-'
+';
 
 # my $pw_args = "$process_name $method\n";
 # $powershell_scheduledTask = "$powershell_scheduledTask $pw_args";
@@ -126,30 +133,32 @@ echo $ioc_fw;
 # Inicio
 
 print("Iniciando programa...\n");
-my $var = execute_powershell_cmd("ls");
-print $var;
-#main();
+# my $var = execute_powershell_cmd("ls");
+# print $var;
+main();
 print("End\n");
 
 ################################################################
 # Función principal
 sub main {
-	my $output = &exists_scheduledTask("$powershell_scheduledTask");
-	print $output;
-}
+	if ($check_firewall == 1) {
+		print "Revisando el firewall: ";
+		my $fw_output = &check_windows_security("$check_windows_firewall");
+		print $fw_output;
+	}
 
+	if ($check_defender == 1) {
+		print "Revisando el Windows Defender: ";
+		my $wd_output = &check_windows_security("$check_windows_defender");
+		print $wd_output;
+	}
+}
 
 ################################################################
 # Inicia funciones
 
-# @arg command to execute
-sub execute_powershell_cmd {
-	my $cmd = $_[0];
-	my $result = `powershell -c $cmd`;
-}
-
 # @arg script_block to execute
-sub exists_scheduledTask {
+sub check_windows_security {
 	my $ps= Win32::PowerShell::IPC->new();
 	my $output= $ps->run_command("$_[0]");
 }

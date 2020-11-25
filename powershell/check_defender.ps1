@@ -53,5 +53,8 @@ $reg_key2 = check_reg_value "LocalMachine" $reg_wd_key2 "TamperProtectionSource"
 $reg_key3 = check_reg_value "LocalMachine" $reg_wd_key3 "SpyNetReporting" $normal_SpyNetReporting;
 $reg_key4 = check_reg_value "LocalMachine" $reg_wd_key4 "SubmitSamplesConsent" $noraml_SubmitSamplesConsent;
 
+# 0 - 4
+# 0 => totalmente apagado [Not ok]
+# 4 => totalmente prendido [Ok]
 $ioc_fw = $reg_key1 + $reg_key2 + $reg_key3 + $reg_key4
 echo $ioc_fw;

@@ -21,7 +21,7 @@ function check_reg_value {
 		#echo "Firewall apagado";
 		return 0;
 	} 
-	elseif ($method -eq "1"){
+	elseif ($value -eq "1"){
 		#echo "Firewall prendido";
 		return 1;
 	} else {
@@ -37,5 +37,8 @@ $reg_key4 = check_reg_value "LocalMachine" $reg_fw_key4 "EnableFirewall"
 $reg_key5 = check_reg_value "LocalMachine" $reg_fw_key5 "EnableFirewall"
 $reg_key6 = check_reg_value "LocalMachine" $reg_fw_key6 "EnableFirewall"
 
+# 0 - 6
+# 0 => totalmente apagado [Not ok]
+# 6 => totalmente prendido [Ok]
 $ioc_fw = $reg_key1 + $reg_key2 + $reg_key3 + $reg_key4 +$reg_key5 + $reg_key6;
 echo $ioc_fw;
