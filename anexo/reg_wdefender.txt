@@ -1,0 +1,14 @@
+# Llaves que indican que Windows Defender esta desactivado - Windows 10
+# Sacadas con regshot
+
+# Valor activado
+# Valor desactivado
+
+HKLM\SOFTWARE\Microsoft\Windows Defender\Features\TamperProtection: 0x00000001
+HKLM\SOFTWARE\Microsoft\Windows Defender\Features\TamperProtection: 0x00000004
+HKLM\SOFTWARE\Microsoft\Windows Defender\Features\TamperProtectionSource: 0x00000005
+HKLM\SOFTWARE\Microsoft\Windows Defender\Features\TamperProtectionSource: 0x00000002
+HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet\SpyNetReporting: 0x00000002
+HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet\SpyNetReporting: 0x00000000
+HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet\SubmitSamplesConsent: 0x00000001
+HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet\SubmitSamplesConsent: 0x00000000
