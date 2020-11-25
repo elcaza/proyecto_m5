@@ -10,9 +10,11 @@ use JSON::MaybeXS qw(encode_json decode_json);
 use Scalar::Util qw(reftype);
 use Digest::file qw(digest_file_hex); 
 use HTTP::Tiny; # peticiones 
-
 # comparacion de arreglos
 use Array::Utils qw(:all); # cpanm Array::Utils
+# process monitor
+use Win32::OLE('in');
+use Win32::Process::List;
 
 # archivo de bitacora
 my $log_file = get_time();
@@ -21,6 +23,14 @@ $log_file =~ s/( |:)/_/g;
 # archivo de configuracion
 my $file = "config.json";
 my $msg = "";
+
+# proces monitor
+#Variables globales / constructores del sistema
+my $processorCount;     #Para obtener los procesadores del sistema
+my $statsQuery;         #Para crear las queries al sig objeto
+my $objWMIService = Win32::OLE->GetObject("winmgmts://./root/cimv2") or die "WMI fallido\n";  #Se crea objeto del sistema
+my $P = Win32::Process::List->new() or die "Lista fallida\n";    #Se crea una lista de procesos
+my $flag = 0;
 
 sub main{
     # Se verifica que el archivo de configuracion se encuentre disponible, de lo 
@@ -37,19 +47,23 @@ sub main{
         my @dir_list = @{$text->{DIRECTORIOS}}; # obtenemos la lista de directorios a monitorear
         my %aseps_hash = %{$text->{ASEP}}; # obtenemos un hash con los ASEPs
         my %iocs_hash = %{$text->{IoCs}}; # obtenemos un hash con los iocs
-        my $flag = $text->{FLAG}; # obtenemos el valor de la bandera para consultar virus total
+        my $flag_virus = $text->{FLAG}; # obtenemos el valor de la bandera para consultar virus total
 
         # lista de hashes de los archivos especificados en el archivo de configuracion
         my %hash_files = get_hashes(@files_list);
         my %dirs = get_files_in_dir(get_path_dirs(@dir_list));
         my %rutas = get_files_in_dir(get_path_dirs(@{$aseps_hash{"rutas"}}));
+        my @cpu = @{$iocs_hash{"cpu"}};
+
+        #print "@cpu\n";
 
         # ciclo infinito es el core del programa, aqui van todas las funciones que se van a estar
         # ejecutando
         while(1){
             check_files(\%hash_files);
-            check_dirs("DIRECTORIOS", $flag, \%dirs);
-            check_dirs("ASEPS[rutas]", $flag, \%rutas);
+            check_dirs("DIRECTORIOS", $flag_virus, \%dirs);
+            check_dirs("ASEPS[rutas]", $flag_virus, \%rutas);
+            process_monitor(@cpu);
         }
     }
 }
@@ -269,6 +283,96 @@ sub get_time{
     return $nice_timestamp;
 }
 
+sub process_monitor(){
+    my ($v1, $v2) = @_;
+    my %list = $P->GetProcesses();
+
+    ProcNums();
+    foreach my $key ( keys %list ) 
+    {
+        my $process = substr $list{$key}, 0, -4; #print $process."\n";
+        #$statsQuery="select * from Win32_PerfRawData_PerfProc_Process where IDProcess=".$$; #Usando PID
+        $statsQuery="select * from Win32_PerfRawData_PerfProc_Process where Name='".$process."'"; #Nombres de proceso sin .exe #print $statsQuery;
+        
+        GetProcessInfo($v1,$v2,$key);
+        #print $flag;
+        #return $flag;
+        #if ($flag){
+        #    write_log("IOC", "Se detecto proceso '$process' con actividad inusual con uso de CPU mayor a $v2%");
+        #}
+    }
+    #return $flag;
+}
+# Obtiene datos para el cálculo de datos
+sub ProcNums(){
+    my $logicalProcs = $objWMIService->ExecQuery("select NumberOfLogicalProcessors from Win32_ComputerSystem");     #Obteneos los procesadores lógicos
+    foreach my $logicalProc (in $logicalProcs)
+    { 
+        $processorCount = $logicalProc->{NumberOfLogicalProcessors};
+    }
+}
+# Obtiene los datos del proceso
+sub GetProcessInfo(){
+    my $limit = shift;        #Cantidad de calculos que realiza por proceso
+    my $tolerancia = shift;   #Porcentaje de CPU que levanta alerta
+    my $PID = shift;          #PID del proceso
+    my $outfile = "Proceso_".$PID.".txt";
+    my $processingTime=0;
+    my $timeStamp=0;
+    my $cpu=0;
+    my $cpumin=0;
+    my $ram=0;
+    my $rammin=0;
+    my $procName;
+
+    while($limit != 0)
+    {
+        #Se obtiene el volcado de l ainformación del proceso
+        my $procDump = $objWMIService->ExecQuery($statsQuery);
+        #Se obtienen los datos que nos competen del proceso
+        foreach my $procData( in $procDump){
+            $procName = $procData->{Name};
+            $cpumin = CPUutil($processingTime,$procData->{PercentProcessorTime},$timeStamp,$procData->{TimeStamp_Sys100NS});
+            $processingTime = $procData->{PercentProcessorTime};
+            $timeStamp = $procData->{TimeStamp_Sys100NS};
+            $rammin = $procData->{WorkingSetPrivate};
+        }
+        #Se guarda el valor máximo en CPU (para detectar el minero) de las rondas
+        if ($cpumin > $cpu){
+            $cpu = $cpumin;
+        }
+        #Se guarda el valor máximo en RAM (para detectar el minero) de las rondas
+        if ($rammin > $ram){
+            $ram = $rammin;
+        }
+        #Se pasa a la sig ronda
+        $limit -= 1;
+    }
+    # Se revisa si ha superado la tolerancia establecida
+    if ($cpu > $tolerancia){
+        $flag = 1;
+        $ram = $ram/1000000;
+        #print "Nombre de proceso :".$procName.", PID: $PID, MaxCPU:".sprintf("%.4f",$cpu)."%, RAM:".$ram."MB \n";
+        #Mensaje a escribir
+        write_log("IOC", "Se detecto proceso '$procName' con actividad inusual con uso de CPU al " . sprintf("%.2f", $cpu) ." %");
+        #`..\\strings2\\x64\\Release\\strings.exe -pid $PID > $outfile` #Como puede ser una operación tardada, se hace solo con los que superar la funcionalidad
+    }else{
+        $flag = 0;
+    }
+}
+#Obtiene el dato correcto del uso de CPU
+sub CPUutil(){
+    #Se pasan los calores de los argumentos a las variables
+    my $oldProcData = shift;
+    my $newProcData = shift;
+    my $oldProcTime = shift;
+    my $newProcTime = shift;
+    #Se obtiene el valor de CPU
+    my $procData = ($newProcData - $oldProcData);
+    my $procTime = ($newProcTime - $oldProcTime);
+    my $util=(($procData/$procTime)*100)/$processorCount;
+    return $util;
+}
 
 # Ejecucion del main
 main();
