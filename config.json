@@ -32,5 +32,9 @@
         "%temp%",
         "%programdata%"
     ],
-    "FLAG":1
+    "FLAG":1,
+    "WindowsSecurity":{
+        "firewall":1,
+        "defender":1
+    }
 }
