@@ -1,0 +1,3 @@
+check_regs.pl => checa registros
+tareas_programadas.pl => Checa tareas tareas_programadas
+windows_security.pl => checa si el firewall y windows defender están activos

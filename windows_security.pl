@@ -9,13 +9,11 @@ use Win32::PowerShell::IPC; # cpan Win32::PowerShell::IPC
 ################################################################
 # Inicia Variables
 
-# Para filtrar por taskname
-# my $process_name = "OobeDiscovery";
-# my $method = "TaskName";
-
-# Para filtrar por taskpath
 my $check_firewall = 1;
 my $check_defender = 1;
+
+# Finaliza Variables a configurar
+################################################################
 
 my $check_windows_firewall = '
 # original

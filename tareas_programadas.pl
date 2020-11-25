@@ -18,6 +18,10 @@ use Win32::PowerShell::IPC; # cpan Win32::PowerShell::IPC
 my $process_name = "\\Microsoft\\XblGameSave\\";
 my $method = "TaskPath";
 
+# Finaliza variables a configurar
+#################################################################
+
+# Función de powershell para corroborar la existencia de tareas programadas
 my $powershell_scheduledTask = '
 function exists_scheduledTask {
 
@@ -62,6 +66,7 @@ print("End\n");
 ################################################################
 # Función principal
 sub main {
+	# Corroboramos si existe la tarea programada
 	my $output = &exists_scheduledTask("$powershell_scheduledTask");
 	if ($output == 1){
 		print "Existe: $output";
