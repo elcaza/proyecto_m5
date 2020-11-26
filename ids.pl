@@ -59,11 +59,19 @@ sub main{
 
         # ciclo infinito es el core del programa, aqui van todas las funciones que se van a estar
         # ejecutando
+        # creamos el hilo
+        my $pid = fork();
+        die if not defined $pid;
         while(1){
-            check_files(\%hash_files);
-            check_dirs("DIRECTORIOS", $flag_virus, \%dirs);
-            check_dirs("ASEPS[rutas]", $flag_virus, \%rutas);
-            process_monitor(@cpu);
+            if ($pid){
+                check_files(\%hash_files);
+                check_dirs("DIRECTORIOS", $flag_virus, \%dirs);
+                check_dirs("ASEPS[rutas]", $flag_virus, \%rutas);
+            } else {
+                process_monitor(@cpu);
+                ram_analizer();
+                # asdasd
+            }
         }
     }
 }
@@ -316,7 +324,6 @@ sub GetProcessInfo(){
     my $limit = shift;        #Cantidad de calculos que realiza por proceso
     my $tolerancia = shift;   #Porcentaje de CPU que levanta alerta
     my $PID = shift;          #PID del proceso
-    my $outfile = "Proceso_".$PID.".txt";
     my $processingTime=0;
     my $timeStamp=0;
     my $cpu=0;
@@ -324,6 +331,9 @@ sub GetProcessInfo(){
     my $ram=0;
     my $rammin=0;
     my $procName;
+    my $path = "Procesos";
+    mkdir $path unless -d $path;
+    my $outfile = "$path\\Proceso_".$PID.".txt";
 
     while($limit != 0)
     {
@@ -355,7 +365,7 @@ sub GetProcessInfo(){
         #print "Nombre de proceso :".$procName.", PID: $PID, MaxCPU:".sprintf("%.4f",$cpu)."%, RAM:".$ram."MB \n";
         #Mensaje a escribir
         write_log("IOC", "Se detecto proceso '$procName' con actividad inusual con uso de CPU al " . sprintf("%.2f", $cpu) ." %");
-        #`..\\strings2\\x64\\Release\\strings.exe -pid $PID > $outfile` #Como puede ser una operación tardada, se hace solo con los que superar la funcionalidad
+        `..\\..\\strings2\\x64\\Release\\strings.exe -pid $PID > $outfile` #Como puede ser una operación tardada, se hace solo con los que superar la funcionalidad
     }else{
         $flag = 0;
     }
@@ -372,6 +382,83 @@ sub CPUutil(){
     my $procTime = ($newProcTime - $oldProcTime);
     my $util=(($procData/$procTime)*100)/$processorCount;
     return $util;
+}
+
+sub ram_analizer(){
+    my $path = "IPs";
+    mkdir $path unless -d $path;
+    my $formato ="Procesos\\Proceso_*.txt";
+    my @ls = glob($formato);
+    my %urls;
+    my $file;
+    foreach $file (@ls) {
+        if (-f $file){
+            # Obtenemos los sitios visitados
+            my $ip = "";
+            print "Analizando $file...\n";
+            # Abrimos el archivo para lectura
+            open(FILE, $file) or die "No se pudo abrir $file: $!";
+            #Obtenemos los strings que tengan htt
+            while (<FILE>) {
+                if (/\bhttp.*\b/i){
+                    my $line = $_;
+                    # Ya sacamos linea con http o https
+                    $_ =~ s/ />/;
+                    $_ =~ s/"/>/;
+                    $_ =~ s/,/>/;
+                    my $url = (split />/, $_)[0];       # Acá ya tenemos http?://pagina
+                    #print $url;
+                    #Revisamos si hay una newline
+                    $ip = Nslookup($url);
+                    # Conteo
+                    my $rep = 1;
+                    # Si existe e el hash, incrementamos la repetición
+                    #print "$ip\n\n";
+                    if ($ip){
+                        print "$ip";
+                        if((exists $urls{$ip})){
+                            $urls{$ip} += 1;
+                        }else{
+                            # Si no existe, se añade al hash $url{$repeticiones}
+                            $urls{$ip} = $rep;
+                        }
+                    }
+                }
+            }
+        }
+        my $json = encode_json \%urls;
+        #print "$file";
+        my @outfile = split(/\\/, $file);
+        @outfile = split(/\./, $outfile[1]);
+        open OUTFILE, "> IPs\\IPs_$outfile[0].json" or die $!;
+        print OUTFILE $json;
+        #sleep(0.25);
+        close OUTFILE;
+    }
+}
+
+sub Nslookup(){
+    my $full = shift;
+    #print $full;
+    # Obtenemos solo el dominio
+    my @tmp = split('//', $full);
+    if (defined $tmp[1])
+    {
+        my @cast = split('/', $tmp[1]);
+        if (defined $cast[0]){
+            my $url = $cast[0];
+            #print $url;
+            my @nslookup = split '\n', `nslookup $url`; #Obtiene las líneas de salida del comando netstat
+            foreach (@nslookup) {
+                if($_ =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/)
+                {
+                    return $1;
+                }
+            }
+        }
+    }else{
+        return 0;
+    }
 }
 
 # Ejecucion del main
