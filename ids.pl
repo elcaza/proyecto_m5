@@ -16,6 +16,10 @@ use Array::Utils qw(:all); # cpanm Array::Utils
 use Win32::OLE('in');
 use Win32::Process::List;
 
+# ejecucion de comandos de powershell
+use Win32::PowerShell::IPC;
+#use lib 'C:\\Strawberry\\cpan\\build\\Win32-PowerShell-IPC-0.02-0\\lib\Win32\PowerShell\\'; por si acaso
+
 # archivo de bitacora
 my $log_file = get_time();
 $log_file =~ s/( |:)/_/g;
@@ -31,6 +35,7 @@ my $statsQuery;         #Para crear las queries al sig objeto
 my $objWMIService = Win32::OLE->GetObject("winmgmts://./root/cimv2") or die "WMI fallido\n";  #Se crea objeto del sistema
 my $P = Win32::Process::List->new() or die "Lista fallida\n";    #Se crea una lista de procesos
 my $flag = 0;
+my @security;
 
 sub main{
     # Se verifica que el archivo de configuracion se encuentre disponible, de lo 
@@ -49,13 +54,52 @@ sub main{
         my %iocs_hash = %{$text->{IoCs}}; # obtenemos un hash con los iocs
         my $flag_virus = $text->{FLAG}; # obtenemos el valor de la bandera para consultar virus total
 
+        @security = @{$iocs_hash{"WindowsSecurity"}};
+        my $check_windows_firewall = do { open my $fh, '<', "auxiliares\\check_firewall.txt"; local $/; <$fh> };
+        my $check_windows_defender = do { open my $fh, '<', "auxiliares\\check_defender.txt"; local $/; <$fh> };
+
+        #print "@security";
+=pod
+        my $process_name = "\\Microsoft\\XblGameSave\\";
+        my $method = "TaskPath";
+        # Función de powershell para corroborar la existencia de tareas programadas
+        my $powershell_scheduledTask = '
+        function exists_scheduledTask {
+
+            param (
+                $name,
+                $method
+            )
+            $taskExists = "";
+            if ($method -eq "TaskName"){
+                $taskExists = Get-ScheduledTask | Where-Object {$_.TaskName -like $name }
+            } 
+            if ($method -eq "TaskPath"){
+                $taskExists = Get-ScheduledTask | Where-Object {$_.TaskPath -like $name }
+            }
+
+            if($taskExists) {
+            # echo "Existe"; 
+            return 1;
+            } else {
+            # echo "No existe";
+            return 0;
+            }
+
+            # Write-Output $name $method
+
+        }
+        exists_scheduledTask ';
+
+        my $pw_args = "$process_name $method\n";
+        $powershell_scheduledTask = "$powershell_scheduledTask $pw_args";
+=cut
+
         # lista de hashes de los archivos especificados en el archivo de configuracion
         my %hash_files = get_hashes(@files_list);
         my %dirs = get_files_in_dir(get_path_dirs(@dir_list));
         my %rutas = get_files_in_dir(get_path_dirs(@{$aseps_hash{"rutas"}}));
         my @cpu = @{$iocs_hash{"cpu"}};
-
-        #print "@cpu\n";
 
         # ciclo infinito es el core del programa, aqui van todas las funciones que se van a estar
         # ejecutando
@@ -67,6 +111,8 @@ sub main{
                 check_files(\%hash_files);
                 check_dirs("DIRECTORIOS", $flag_virus, \%dirs);
                 check_dirs("ASEPS[rutas]", $flag_virus, \%rutas);
+                windows_security(@security[0], @security[1], $check_windows_firewall, $check_windows_defender);
+                #task_schedule($powershell_scheduledTask, $process_name);
             } else {
                 #sleep(1000);
                 process_monitor(@cpu);
@@ -565,6 +611,61 @@ sub IPfilter(){
         return ($IPfiltered,$port);
     }
 }
+
+sub windows_security {
+    my $firewall = shift(@_);
+    my $defender = shift(@_);
+    my $check_windows_firewall = shift(@_);
+    my $check_windows_defender = shift(@_);
+
+	if ($firewall) {
+		#print "Revisando el firewall: ";
+		my $fw_output = check_windows_security("$check_windows_firewall");
+		#print $fw_output; # 0 o 6
+        if ($fw_output){
+            write_log("IOCS[WindowsSecurity]", "El firewall se ha desactivado");
+        }
+	}
+
+	if ($defender) {
+		#print "Revisando el Windows Defender: ";
+		my $wd_output = check_windows_security("$check_windows_defender");
+		#print $wd_output;
+        unless ($wd_output){ # 0 o 4
+            write_log("IOCS[WindowsSecurity]", "Windows Defender se ha desactivado");
+        }
+	}
+}
+
+# @arg script_block to execute
+sub check_windows_security {
+	my $ps= Win32::PowerShell::IPC->new();
+	my $output= $ps->run_command("$_[0]");
+}
+
+=pod
+sub task_schedule {
+	# Corroboramos si existe la tarea programada
+    my $powershell = shift(@_);
+    #print "$powershell\n";
+	my $output = exists_scheduledTask("$powershell");
+	if ($output =~ /1/){
+		#print "Existe: $output";
+        write_log("ASEP[TAREAS]", "Existe la tarea programada 'tarea 1'");
+	} #else {
+		#print "No existe: $output";
+	#}
+}
+
+sub exists_scheduledTask {
+    my $var = shift(@_);
+    #print "$var";
+	my $ps= Win32::PowerShell::IPC->new();
+	my $output= $ps->run_command("$var");
+	return $output;
+}
+=cut
+
 
 # Ejecucion del main
 main();
