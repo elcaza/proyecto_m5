@@ -18,7 +18,9 @@ Malware de minado que permite:
 Este malware no se ejecuta dentro de máquinas virtuales para evitar su análisis
 
 ### Ejecución
+```
 Para su ejecución unicamente debe ejecutar con privilegios de administrador el archivo .exe
+```
 
 ## Desarrollo del IDS
 El IDS permite la detección de software de minado mediante las siguientes técnicas:
@@ -33,5 +35,28 @@ El IDS permite la detección de software de minado mediante las siguientes técn
 El IDS es de fácil configuración gracias a su `config.json` en que se pueden definir sus umbrales a utilizar
 
 ### Requerimientos
+Se requiere tener perl, este se puede obtener desde:
++ http://strawberryperl.com/releases.html
+
+Se requiere la instalación de los siguientes módulos:
++ Net::Pcap
++ Win32::OLE
++ Win32::GUI
++ Win32::Process::List
++ JSON::Parse
++ Win32::PowerShell::IPC
++ Win32::GUI
++ Data::Dumper
++ lib
++ JSON::MaybeXS
++ Scalar::Util
++ Digest::file
++ HTTP::Tiny;
++ Array::Utils
 
 ### Ejecución
+Para la ejecución, posicionados en la carpeta, solamente ejecutamos el script de Perl
+
+```
+perl ids.pl
+```
