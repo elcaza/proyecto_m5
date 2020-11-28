@@ -73,7 +73,13 @@ Usando la herramienta de strings2, se hace el volcado de memoria del proceso. De
 
 
 #### Análisis de ASEPs
+Se hace un analisis de las rutas utilizadas para localizar programas que queremos que sean ejecutados en cada inicio de sesión de usuario o de manera global en todo el equipo. Una vez teniendo nuestras rutas, se realiza una verificación en la que podemos monitorear cuando un archivo "sospechoso" de tipo ejecutable (.exe, .vbs, .ps1, etc.) es creado en estas direcciones, eso es alertado y reflejado en la bitacora.
 
+#### Análisis de Archivos y Directorios (FIM)
+Se hace un monitoreo de la integridad de archivos especificos como el archivo "host" el cual podría implicar un intento de pharming, cada que se realiza una modificación en estos archivos se muestra en la bitacora el nombre del archivo junto con dos hash md5, el primero será el hash original y el segundo será el hash después de la modificación. Para el monitoreo de directorios se especifican directorios como "%appdata%", en estos directorios suelen colocarse las muestras de malware, este monitoreo verifica si se crean archivos que pordían ser archivos con extensiones de archivos que pueden ser ejecutados (.exe, .vbs, .ps1, etc.). De igual manera se monitorea si un archivo de estos es eliminado. Una vez se detecta al alguna de estas acciones se escribe en bitacora.
+
+#### Prueba de archivo en sandbox VirusTotal
+Si se encuentra habilitada esta opción, se obtiene el hash md5 de la muestra que se enviará a la sandbox y se realiza la petición, esta petición es procesada y se obtiene el resultado de conicidencias en la sandbox, el resultado es escrito en la bitacora.
 
 #### Detección de apagado de Firewall
 
