@@ -22,6 +22,8 @@ Este malware no se ejecuta dentro de máquinas virtuales para evitar su análisi
 Para su ejecución unicamente debe ejecutar con privilegios de administrador el archivo .exe
 ```
 
++ Provisionalmente no funciona la persistencia, debido a que al utilizar esteganografía requiere de utilizar descargas de imagenes, que se conflictua con los permisos de la carpeta.
+
 ## Desarrollo del IDS
 El IDS permite la detección de software de minado mediante las siguientes técnicas:
 + Uso anomalo de CPU
